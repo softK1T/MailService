@@ -28,35 +28,28 @@ public class EmailService : IEmailService
             email.To.Add(MailboxAddress.Parse(request.ToEmail));
             email.Subject = request.Subject;
 
-            var builder = new BodyBuilder();
+            var builder = new BodyBuilder { HtmlBody = request.Body };
 
-            // Handle attachments if any
             if (request.Attachments != null)
             {
                 foreach (var file in request.Attachments)
                 {
                     if (file.Length > 0)
                     {
-                        using (var ms = new MemoryStream())
-                        {
-                            file.CopyTo(ms);
-                            var fileBytes = ms.ToArray();
-                            builder.Attachments.Add(file.FileName, fileBytes, ContentType.Parse(file.ContentType));
-                        }
+                        using var ms = new MemoryStream();
+                        file.CopyTo(ms);
+                        builder.Attachments.Add(file.FileName, ms.ToArray());
                     }
                 }
             }
 
-            builder.HtmlBody = request.Body;
             email.Body = builder.ToMessageBody();
 
-            using (var smtp = new SmtpClient())
-            {
-                smtp.Connect(_mailSettings.Host, _mailSettings.Port, _mailSettings.UseSSL ? SecureSocketOptions.StartTls : SecureSocketOptions.None);
-                smtp.Authenticate(_mailSettings.Mail, _mailSettings.Password);
-                await smtp.SendAsync(email);
-                smtp.Disconnect(true);
-            }
+            using var smtp = new SmtpClient();
+            await smtp.ConnectAsync(_mailSettings.Host, _mailSettings.Port, _mailSettings.UseSSL ? SecureSocketOptions.StartTls : SecureSocketOptions.None);
+            await smtp.AuthenticateAsync(_mailSettings.Mail, _mailSettings.Password);
+            await smtp.SendAsync(email);
+            await smtp.DisconnectAsync(true);
 
             return new EmailResponse
             {

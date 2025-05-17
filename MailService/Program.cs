@@ -1,6 +1,5 @@
 using MailService.Models;
 using MailService.Services;
-using Microsoft.JSInterop.Infrastructure;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
 
@@ -10,24 +9,23 @@ Env.Load();
 
 builder.Services.AddControllers();
 
-builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "Mail Service", Version = "v1" });
-}
-);
+});
 
 builder.Services.Configure<MailSettings>(options =>
 {
-    options.Mail = Environment.GetEnvironmentVariable("MAIL_ADDRESS");
-    options.DisplayName = Environment.GetEnvironmentVariable("MAIL_DISPLAY_NAME");
-    options.Password = Environment.GetEnvironmentVariable("MAIL_PASSWORD");
-    options.Host = Environment.GetEnvironmentVariable("MAIL_HOST");
-    options.Port = int.Parse(Environment.GetEnvironmentVariable("MAIL_PORT") ?? "587");
-    options.UseSSL = bool.Parse(Environment.GetEnvironmentVariable("MAIL_USE_SSL") ?? "true");
+    options.Mail = Environment.GetEnvironmentVariable("MAIL_ADDRESS") ?? "";
+    options.DisplayName = Environment.GetEnvironmentVariable("MAIL_DISPLAY_NAME") ?? "";
+    options.Password = Environment.GetEnvironmentVariable("MAIL_PASSWORD") ?? "";
+    options.Host = Environment.GetEnvironmentVariable("MAIL_HOST") ?? "";
+    options.Port = int.TryParse(Environment.GetEnvironmentVariable("MAIL_PORT"), out var port) ? port : 587;
+    options.UseSSL = bool.TryParse(Environment.GetEnvironmentVariable("MAIL_USE_SSL"), out var useSsl) ? useSsl : true;
 });
 
 builder.Services.AddTransient<IEmailService, EmailService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -37,9 +35,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
